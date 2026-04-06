@@ -4,6 +4,7 @@ import type { CreateScarInput, RecallContext } from "../core/schema.js";
 import { DEDUP_WINDOW_MS } from "../shared/constants.js";
 
 interface ToolResponse {
+  [key: string]: unknown;
   content: Array<{ type: "text"; text: string }>;
 }
 
