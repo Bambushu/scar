@@ -1,0 +1,35 @@
+{
+  "name": "scar",
+  "version": "0.1.0",
+  "description": "Failure memory for AI agents — MCP server + CLI",
+  "type": "module",
+  "bin": {
+    "scar": "./dist/bin/scar.js",
+    "scar-mcp": "./dist/bin/scar-mcp.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": ["mcp", "ai", "agents", "failure-memory", "claude"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^12.8.0",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
