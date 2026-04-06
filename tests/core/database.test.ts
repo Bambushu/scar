@@ -147,6 +147,37 @@ describe("ScarDatabase", () => {
     expect(stats.by_repo["other"]).toBe(1);
   });
 
+  it("does not find duplicate outside time window", () => {
+    db.create(sampleInput);
+    // Use a tiny negative-effective window: cutoff = now + 1ms (future), so nothing qualifies
+    const dup = db.findRecentDuplicate(
+      sampleInput.error_signature,
+      sampleInput.repo,
+      -1 // negative window = cutoff is in the future, nothing matches
+    );
+    expect(dup).toBeNull();
+  });
+
+  it("does not match duplicate with different repo", () => {
+    db.create(sampleInput);
+    const dup = db.findRecentDuplicate(
+      sampleInput.error_signature,
+      "different-repo",
+      5 * 60 * 1000
+    );
+    expect(dup).toBeNull();
+  });
+
+  it("does not match duplicate with different error signature", () => {
+    db.create(sampleInput);
+    const dup = db.findRecentDuplicate(
+      "completely different error",
+      sampleInput.repo,
+      5 * 60 * 1000
+    );
+    expect(dup).toBeNull();
+  });
+
   it("exports all scars as array", () => {
     db.create(sampleInput);
     db.create({ ...sampleInput, repo: "other" });
