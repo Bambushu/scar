@@ -37,6 +37,19 @@ export function createServer(dbPath?: string): McpServer {
   );
 
   server.tool(
+    "scar_update",
+    "Update an existing scar - record what worked, change resolution status, add tags. Use after fixing a previously logged failure.",
+    {
+      id: z.string().describe("UUID of the scar to update"),
+      what_worked: z.string().optional().describe("The fix that resolved the issue"),
+      resolution_type: z.enum(["fixed", "workaround", "wontfix", "escalated", "unknown"]).optional().describe("New resolution status"),
+      tags: z.array(z.string()).optional().describe("Replace tags"),
+      what_went_wrong: z.string().optional().describe("Append or replace failure description"),
+    },
+    async (args) => handlers.scar_update(args)
+  );
+
+  server.tool(
     "scar_recall",
     "Query for relevant past failures. Returns top 3 matches ranked by similarity.",
     {

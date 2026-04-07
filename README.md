@@ -45,6 +45,7 @@ scar export
 | Tool | Purpose |
 |------|---------|
 | `scar_log` | Record a failure with context |
+| `scar_update` | Update a scar - record what worked, change resolution |
 | `scar_recall` | Find relevant past failures |
 | `scar_forget` | Remove a scar |
 | `scar_stats` | Aggregate failure patterns |

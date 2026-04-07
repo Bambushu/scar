@@ -108,6 +108,41 @@ describe("MCP Tool Handlers", () => {
     });
   });
 
+  describe("scar_update", () => {
+    it("updates what_worked and resolution_type", async () => {
+      const logResult = await handlers.scar_log({
+        repo: "test-repo",
+        language: "typescript",
+        tool_name: "bash",
+        error_type: "runtime",
+        error_signature: "TypeError: oops",
+        what_was_tried: "test",
+        what_went_wrong: "failed",
+      });
+      const scarId = JSON.parse(logResult.content[0].text).id;
+
+      const result = await handlers.scar_update({
+        id: scarId,
+        what_worked: "Added null check",
+        resolution_type: "fixed",
+      });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.what_worked).toBe("Added null check");
+      expect(data.resolution_type).toBe("fixed");
+    });
+
+    it("returns error for non-existent scar", async () => {
+      const result = await handlers.scar_update({
+        id: "fake-id",
+        what_worked: "something",
+      });
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data.updated).toBe(false);
+    });
+  });
+
   describe("scar_forget", () => {
     it("deletes an existing scar", async () => {
       const logResult = await handlers.scar_log({

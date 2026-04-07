@@ -10,6 +10,7 @@ interface ToolResponse {
 
 export interface ToolHandlers {
   scar_log: (args: Record<string, unknown>) => Promise<ToolResponse>;
+  scar_update: (args: Record<string, unknown>) => Promise<ToolResponse>;
   scar_recall: (args: Record<string, unknown>) => Promise<ToolResponse>;
   scar_forget: (args: Record<string, unknown>) => Promise<ToolResponse>;
   scar_stats: (args: Record<string, unknown>) => Promise<ToolResponse>;
@@ -66,6 +67,24 @@ export function createToolHandlers(
 
       const record = db.create(input);
       return jsonResponse(record);
+    },
+
+    async scar_update(args) {
+      const id = args.id as string;
+      const existing = db.findById(id);
+      if (!existing) {
+        return jsonResponse({ error: `No scar found with ID: ${id}`, updated: false });
+      }
+
+      db.update(id, {
+        what_worked: args.what_worked as string | undefined,
+        resolution_type: args.resolution_type as "fixed" | "workaround" | "wontfix" | "escalated" | "unknown" | undefined,
+        tags: args.tags as string[] | undefined,
+        what_went_wrong: args.what_went_wrong as string | undefined,
+      });
+
+      const updated = db.findById(id)!;
+      return jsonResponse(updated);
     },
 
     async scar_recall(args) {
@@ -139,61 +158,3 @@ export function createToolHandlers(
   };
 }
 
-export const TOOL_DEFINITIONS = [
-  {
-    name: "scar_log",
-    description: "Record a failure: what happened, what went wrong, what worked instead.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        repo: { type: "string", description: "Repository path or name" },
-        language: { type: "string", description: "Primary language" },
-        tool_name: { type: "string", description: "Tool that triggered failure" },
-        error_type: { type: "string", enum: ["syntax","runtime","config","permission","timeout","dependency","type","network","other"] },
-        error_signature: { type: "string", description: "Normalized error first line" },
-        exit_code: { type: "number" },
-        file_pattern: { type: "string", enum: ["test","config","migration","src","build","ci","docs","other"] },
-        what_was_tried: { type: "string" },
-        what_went_wrong: { type: "string" },
-        what_worked: { type: "string" },
-        resolution_type: { type: "string", enum: ["fixed","workaround","wontfix","escalated","unknown"] },
-        tags: { type: "array", items: { type: "string" } },
-      },
-      required: ["repo","language","tool_name","error_signature","what_was_tried","what_went_wrong"],
-    },
-  },
-  {
-    name: "scar_recall",
-    description: "Query for relevant past failures. Returns top 3 matches.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        repo: { type: "string" }, language: { type: "string" }, tool_name: { type: "string" },
-        error_type: { type: "string" }, error_signature: { type: "string" },
-        file_pattern: { type: "string" }, tags: { type: "array", items: { type: "string" } },
-      },
-    },
-  },
-  {
-    name: "scar_forget",
-    description: "Remove a scar by ID.",
-    inputSchema: { type: "object" as const, properties: { id: { type: "string" } }, required: ["id"] },
-  },
-  {
-    name: "scar_stats",
-    description: "Aggregate patterns: top error types, repos, tools.",
-    inputSchema: { type: "object" as const, properties: { stale: { type: "boolean" } } },
-  },
-  {
-    name: "scar_context",
-    description: "Lightweight pre-check: count of relevant scars.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        repo: { type: "string" }, language: { type: "string" }, tool_name: { type: "string" },
-        error_type: { type: "string" }, error_signature: { type: "string" },
-        file_pattern: { type: "string" }, tags: { type: "array", items: { type: "string" } },
-      },
-    },
-  },
-];

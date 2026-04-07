@@ -16,10 +16,14 @@
   },
   "keywords": ["mcp", "ai", "agents", "failure-memory", "claude"],
   "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.8.0",
-    "commander": "^14.0.3"
+    "commander": "^14.0.3",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -30,6 +34,7 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ]
 }
