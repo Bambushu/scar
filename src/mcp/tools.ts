@@ -54,9 +54,12 @@ export function createToolHandlers(
       if (existing) {
         db.bumpHitCount(existing.id);
         if (input.what_went_wrong !== existing.what_went_wrong) {
-          db.update(existing.id, {
-            what_went_wrong: `${existing.what_went_wrong}\n---\n${input.what_went_wrong}`,
-          });
+          const existingEntries = existing.what_went_wrong.split("\n---\n");
+          if (existingEntries.length < 5) {
+            db.update(existing.id, {
+              what_went_wrong: `${existing.what_went_wrong}\n---\n${input.what_went_wrong}`,
+            });
+          }
         }
         const updated = db.findById(existing.id)!;
         return jsonResponse({

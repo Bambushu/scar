@@ -62,8 +62,10 @@ export class ScarDatabase {
   private migrate(): void {
     const version = this.getMetaValue("scar_schema_version");
     if (!version) {
-      this.db.exec(MIGRATION_V1);
-      this.setMetaValue("scar_schema_version", "1");
+      this.db.transaction(() => {
+        this.db.exec(MIGRATION_V1);
+        this.setMetaValue("scar_schema_version", "1");
+      })();
     }
   }
 

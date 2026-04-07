@@ -6,7 +6,7 @@ import { ScarMatcher } from "../core/matcher.js";
 import { createToolHandlers } from "./tools.js";
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from "../shared/constants.js";
 
-export function createServer(dbPath?: string): McpServer {
+export function createServer(dbPath?: string): { server: McpServer; close: () => void } {
   const db = new ScarDatabase(dbPath);
   const matcher = new ScarMatcher(db);
   const handlers = createToolHandlers(db, matcher);
@@ -93,11 +93,16 @@ export function createServer(dbPath?: string): McpServer {
     async (args) => handlers.scar_context(args)
   );
 
-  return server;
+  return { server, close: () => db.close() };
 }
 
 export async function startServer(dbPath?: string): Promise<void> {
-  const server = createServer(dbPath);
+  const { server, close } = createServer(dbPath);
+
+  const shutdown = () => { close(); process.exit(0); };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

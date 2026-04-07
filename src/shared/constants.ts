@@ -24,7 +24,7 @@ export const MATCH_WEIGHTS = {
   error_signature: 1.0,
   context_combo: 0.6,
   error_pattern: 0.3,
-  tag_overlap: 0.1,
+  tag_overlap: 0.25,
 } as const;
 
 /** MCP server name */

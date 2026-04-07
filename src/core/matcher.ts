@@ -79,7 +79,8 @@ export class ScarMatcher {
       const contextTagSet = new Set(context.tags);
       const overlap = scar.tags.filter((t) => contextTagSet.has(t)).length;
       if (overlap > 0) {
-        score += MATCH_WEIGHTS.tag_overlap * overlap;
+        const maxTags = Math.max(context.tags.length, scar.tags.length);
+        score += MATCH_WEIGHTS.tag_overlap * (overlap / maxTags);
       }
     }
 
