@@ -2,7 +2,7 @@ import type { ScarRecord, RecallContext, MatchResult } from "./schema.js";
 import type { ScarDatabase } from "./database.js";
 import { MATCH_WEIGHTS, MAX_RECALL_RESULTS } from "../shared/constants.js";
 
-const MIN_SCORE_THRESHOLD = 0.1;
+const MIN_SCORE_THRESHOLD = 0.05;
 
 export class ScarMatcher {
   constructor(private db: ScarDatabase) {}
