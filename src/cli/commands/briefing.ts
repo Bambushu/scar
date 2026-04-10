@@ -5,24 +5,31 @@ interface BriefingOptions { repo?: string; dbPath?: string; }
 export function runBriefing(options: BriefingOptions = {}): string {
   const db = new ScarDatabase(options.dbPath);
   try {
-    const { entries, totalUnresolved } = db.getBriefing(options.repo);
+    const { entries, resolvedEntries, totalUnresolved } = db.getBriefing(options.repo);
 
-    if (entries.length === 0) {
-      return "No unresolved scars. Clean slate.";
+    if (entries.length === 0 && resolvedEntries.length === 0) {
+      return "";  // Silent when no scars
     }
 
     const lines: string[] = [];
-    lines.push(`${totalUnresolved} unresolved scar(s)${options.repo ? ` for ${options.repo}` : ""}:\n`);
+    lines.push(`Scar briefing for ${options.repo ?? "all repos"}:`);
 
-    for (const e of entries) {
-      const status = e.what_worked
-        ? `workaround: ${e.what_worked}`
-        : `unresolved (hit ${e.hit_count}x)`;
-      lines.push(`  ${e.error_signature} — ${status}`);
+    if (entries.length > 0) {
+      lines.push(`${totalUnresolved} unresolved:`);
+      for (const e of entries) {
+        lines.push(`  ${e.error_signature} - unresolved (hit ${e.hit_count}x)`);
+      }
+      if (totalUnresolved > entries.length) {
+        lines.push(`  ... and ${totalUnresolved - entries.length} more.`);
+      }
     }
 
-    if (totalUnresolved > entries.length) {
-      lines.push(`\n  ... and ${totalUnresolved - entries.length} more. Use 'scar stats' for full picture.`);
+    if (resolvedEntries.length > 0) {
+      lines.push("");
+      lines.push("Known fixes:");
+      for (const e of resolvedEntries) {
+        lines.push(`  ${e.error_signature} - fix: ${e.what_worked}`);
+      }
     }
 
     return lines.join("\n");

@@ -293,7 +293,7 @@ export class ScarDatabase {
     };
   }
 
-  getBriefing(repo?: string): { entries: BriefingEntry[]; totalUnresolved: number } {
+  getBriefing(repo?: string): { entries: BriefingEntry[]; resolvedEntries: BriefingEntry[]; totalUnresolved: number } {
     let countQuery = "SELECT COUNT(*) as cnt FROM scars WHERE resolution_type NOT IN ('fixed', 'wontfix')";
     let query = `
       SELECT id, error_signature, what_went_wrong, what_worked, resolution_type, repo, hit_count, created_at
@@ -313,7 +313,23 @@ export class ScarDatabase {
 
     const rows = this.db.prepare(query).all({ ...params, limit: MAX_BRIEFING_RESULTS }) as BriefingEntry[];
 
-    return { entries: rows, totalUnresolved: countRow.cnt };
+    let resolvedQuery = `
+      SELECT id, error_signature, what_went_wrong, what_worked, resolution_type, repo, hit_count, created_at
+      FROM scars
+      WHERE resolution_type = 'fixed' AND what_worked IS NOT NULL`;
+    const resolvedParams: Record<string, string | number> = {};
+
+    if (repo) {
+      resolvedQuery += " AND repo = @repo";
+      resolvedParams.repo = repo;
+    }
+
+    resolvedQuery += " ORDER BY hit_count DESC, created_at DESC LIMIT @limit";
+    resolvedParams.limit = 3;
+
+    const resolvedRows = this.db.prepare(resolvedQuery).all(resolvedParams) as BriefingEntry[];
+
+    return { entries: rows, resolvedEntries: resolvedRows, totalUnresolved: countRow.cnt };
   }
 
   exportAll(): ScarRecord[] {

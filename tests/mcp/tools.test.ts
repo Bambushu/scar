@@ -277,7 +277,7 @@ describe("MCP Tool Handlers", () => {
       expect(data.message).toContain("TypeError: foo is not a function");
     });
 
-    it("excludes fixed scars from briefing", async () => {
+    it("excludes fixed scars from unresolved entries but includes them in resolvedEntries", async () => {
       const logResult = await handlers.scar_log({
         repo: "test-repo",
         language: "typescript",
@@ -293,7 +293,9 @@ describe("MCP Tool Handlers", () => {
       const result = await handlers.scar_briefing({});
       const data = JSON.parse(result.content[0].text);
       expect(data.entries).toHaveLength(0);
-      expect(data.message).toContain("Clean slate");
+      expect(data.resolvedEntries).toHaveLength(1);
+      expect(data.resolvedEntries[0].what_worked).toBe("patched it");
+      expect(data.message).toContain("Known fixes");
     });
 
     it("returns all repos when repo is omitted", async () => {

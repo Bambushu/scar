@@ -236,6 +236,43 @@ describe("ScarDatabase", () => {
     });
   });
 
+  describe("getBriefing with resolved scars", () => {
+    it("should return both unresolved and resolved scars with what_worked", () => {
+      // Create unresolved scar
+      db.create({
+        repo: "test-repo",
+        language: "ts",
+        tool_name: "bash",
+        error_type: "runtime",
+        error_signature: "unresolved error 1",
+        what_was_tried: "something",
+        what_went_wrong: "broke",
+      });
+
+      // Create resolved scar with what_worked
+      const resolved = db.create({
+        repo: "test-repo",
+        language: "ts",
+        tool_name: "bash",
+        error_type: "config",
+        error_signature: "config error",
+        what_was_tried: "bad config",
+        what_went_wrong: "wrong format",
+      });
+      db.update(resolved.id, {
+        what_worked: "use YAML not JSON",
+        resolution_type: "fixed",
+      });
+
+      const result = db.getBriefing("test-repo");
+      expect(result.totalUnresolved).toBe(1);
+      expect(result.entries.length).toBe(1);
+      expect(result.resolvedEntries).toBeDefined();
+      expect(result.resolvedEntries.length).toBe(1);
+      expect(result.resolvedEntries[0].what_worked).toBe("use YAML not JSON");
+    });
+  });
+
   it("exports all scars as array", () => {
     db.create(sampleInput);
     db.create({ ...sampleInput, repo: "other" });

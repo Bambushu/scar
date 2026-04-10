@@ -164,12 +164,13 @@ export function createToolHandlers(
 
     async scar_briefing(args) {
       const repo = args.repo as string | undefined;
-      const { entries, totalUnresolved } = db.getBriefing(repo);
+      const { entries, resolvedEntries, totalUnresolved } = db.getBriefing(repo);
 
-      if (entries.length === 0) {
+      if (entries.length === 0 && resolvedEntries.length === 0) {
         const briefing: ScarBriefing = {
           repo: repo ?? null,
           entries: [],
+          resolvedEntries: [],
           total_unresolved: 0,
           message: "No unresolved scars. Clean slate.",
         };
@@ -183,11 +184,21 @@ export function createToolHandlers(
         return `${i + 1}. ${e.error_signature} — ${status}`;
       });
 
+      let message = totalUnresolved > 0
+        ? `${totalUnresolved} unresolved scar(s)${repo ? ` for ${repo}` : ""}:\n${lines.join("\n")}`
+        : "";
+
+      if (resolvedEntries.length > 0) {
+        const fixLines = resolvedEntries.map((e) => `  ${e.error_signature} - fix: ${e.what_worked}`);
+        message += (message ? "\n\n" : "") + `Known fixes:\n${fixLines.join("\n")}`;
+      }
+
       const briefing: ScarBriefing = {
         repo: repo ?? null,
         entries,
+        resolvedEntries,
         total_unresolved: totalUnresolved,
-        message: `${totalUnresolved} unresolved scar(s)${repo ? ` for ${repo}` : ""}:\n${lines.join("\n")}`,
+        message,
       };
       return jsonResponse(briefing);
     },

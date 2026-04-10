@@ -140,6 +140,7 @@ export interface BriefingEntry {
 export interface ScarBriefing {
   repo: string | null;
   entries: BriefingEntry[];
+  resolvedEntries: BriefingEntry[];
   total_unresolved: number;
   message: string;
 }
