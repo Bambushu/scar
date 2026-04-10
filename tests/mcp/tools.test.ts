@@ -73,6 +73,36 @@ describe("MCP Tool Handlers", () => {
       expect(data.deduplicated).toBe(true);
       expect(data.hit_count).toBe(2);
     });
+
+    it("should accept severity and source in scar_log", async () => {
+      const result = await handlers.scar_log({
+        repo: "test",
+        language: "typescript",
+        tool_name: "edit",
+        error_signature: "old_string not found",
+        what_was_tried: "Edit file.ts",
+        what_went_wrong: "String didn't match",
+        severity: "low",
+        source: "auto-hook",
+      });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.severity).toBe("low");
+      expect(data.source).toBe("auto-hook");
+    });
+
+    it("should default severity to medium and source to manual in scar_log", async () => {
+      const result = await handlers.scar_log({
+        repo: "test",
+        language: "typescript",
+        tool_name: "bash",
+        error_signature: "some error",
+        what_was_tried: "something",
+        what_went_wrong: "broke",
+      });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.severity).toBe("medium");
+      expect(data.source).toBe("manual");
+    });
   });
 
   describe("scar_recall", () => {

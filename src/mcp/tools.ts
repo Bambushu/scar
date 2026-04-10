@@ -43,6 +43,8 @@ export function createToolHandlers(
         what_worked: (args.what_worked as string) ?? null,
         resolution_type: (args.resolution_type as CreateScarInput["resolution_type"]) ?? "unknown",
         tags: (args.tags as string[]) ?? [],
+        severity: (args.severity as CreateScarInput["severity"]) ?? undefined,
+        source: (args.source as CreateScarInput["source"]) ?? undefined,
       };
 
       // Deduplication check

@@ -32,6 +32,8 @@ export function createServer(dbPath?: string): { server: McpServer; close: () =>
       what_worked: z.string().optional(),
       resolution_type: z.enum(["fixed","workaround","wontfix","escalated","unknown"]).default("unknown"),
       tags: z.array(z.string()).default([]),
+      severity: z.enum(["low", "medium", "high"]).optional().describe("Severity level. low: typo/wrong flag, medium: broken build/bad config, high: data loss/security/production impact. Defaults to medium."),
+      source: z.enum(["auto-hook", "manual", "briefing-follow-up"]).optional().describe("How this scar was captured. Defaults to manual."),
     },
     async (args) => handlers.scar_log(args)
   );
