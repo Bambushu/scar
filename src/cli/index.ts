@@ -40,6 +40,8 @@ export function main(): void {
     .option("--worked <text>", "What fixed it")
     .option("--resolution <type>", "Resolution type", "unknown")
     .option("--tags <tags...>", "Custom labels")
+    .option("--severity <level>", "Severity: low, medium, high", "medium")
+    .option("--source <source>", "Capture source: auto-hook, manual, briefing-follow-up", "manual")
     .action((options) => {
       const result = runLog({
         repo: options.repo, language: options.language, tool: options.tool,
@@ -47,6 +49,7 @@ export function main(): void {
         exitCode: options.exitCode, filePattern: options.filePattern,
         tried: options.tried, wrong: options.wrong, worked: options.worked,
         resolution: options.resolution, tags: options.tags,
+        severity: options.severity, source: options.source,
       });
       console.log(result);
     });

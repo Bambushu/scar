@@ -1,6 +1,6 @@
 import { ScarDatabase } from "../../core/database.js";
 import { DEDUP_WINDOW_MS } from "../../shared/constants.js";
-import type { CreateScarInput, ErrorType, FilePattern, ResolutionType } from "../../core/schema.js";
+import type { CreateScarInput, ErrorType, FilePattern, ResolutionType, Severity, ScarSource } from "../../core/schema.js";
 
 interface LogOptions {
   repo: string;
@@ -16,6 +16,8 @@ interface LogOptions {
   resolution?: string;
   tags?: string[];
   dbPath?: string;
+  severity?: string;
+  source?: string;
 }
 
 export function runLog(options: LogOptions): string {
@@ -34,6 +36,8 @@ export function runLog(options: LogOptions): string {
       what_worked: options.worked ?? null,
       resolution_type: (options.resolution as ResolutionType) ?? "unknown",
       tags: options.tags ?? [],
+      severity: (options.severity as Severity) ?? undefined,
+      source: (options.source as ScarSource) ?? undefined,
     };
 
     const existing = db.findRecentDuplicate(input.error_signature, input.repo, DEDUP_WINDOW_MS);
