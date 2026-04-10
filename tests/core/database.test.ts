@@ -178,6 +178,62 @@ describe("ScarDatabase", () => {
     expect(dup).toBeNull();
   });
 
+  describe("getBriefing", () => {
+    it("returns empty briefing when no scars exist", () => {
+      const { entries, totalUnresolved } = db.getBriefing();
+      expect(entries).toHaveLength(0);
+      expect(totalUnresolved).toBe(0);
+    });
+
+    it("returns unresolved scars ordered by hit_count", () => {
+      const scar1 = db.create(sampleInput);
+      db.bumpHitCount(scar1.id); // hit_count = 2
+      db.bumpHitCount(scar1.id); // hit_count = 3
+
+      db.create({ ...sampleInput, error_signature: "Error: second failure" });
+
+      const { entries, totalUnresolved } = db.getBriefing();
+      expect(entries).toHaveLength(2);
+      expect(totalUnresolved).toBe(2);
+      expect(entries[0].hit_count).toBe(3);
+      expect(entries[1].hit_count).toBe(1);
+    });
+
+    it("excludes fixed and wontfix scars", () => {
+      const fixed = db.create(sampleInput);
+      db.update(fixed.id, { resolution_type: "fixed" });
+
+      const wontfix = db.create({ ...sampleInput, error_signature: "Error: wontfix" });
+      db.update(wontfix.id, { resolution_type: "wontfix" });
+
+      db.create({ ...sampleInput, error_signature: "Error: still open" });
+
+      const { entries, totalUnresolved } = db.getBriefing();
+      expect(entries).toHaveLength(1);
+      expect(totalUnresolved).toBe(1);
+      expect(entries[0].error_signature).toBe("Error: still open");
+    });
+
+    it("filters by repo when specified", () => {
+      db.create(sampleInput);
+      db.create({ ...sampleInput, repo: "other-project", error_signature: "Error: other" });
+
+      const { entries, totalUnresolved } = db.getBriefing("my-project");
+      expect(entries).toHaveLength(1);
+      expect(totalUnresolved).toBe(1);
+      expect(entries[0].repo).toBe("my-project");
+    });
+
+    it("includes workaround scars (not fixed)", () => {
+      const scar = db.create(sampleInput);
+      db.update(scar.id, { resolution_type: "workaround", what_worked: "Use flag --legacy" });
+
+      const { entries } = db.getBriefing();
+      expect(entries).toHaveLength(1);
+      expect(entries[0].what_worked).toBe("Use flag --legacy");
+    });
+  });
+
   it("exports all scars as array", () => {
     db.create(sampleInput);
     db.create({ ...sampleInput, repo: "other" });

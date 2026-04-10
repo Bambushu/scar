@@ -8,10 +8,11 @@ import {
   type CreateScarInput,
   type UpdateScarInput,
   type ScarStats,
+  type BriefingEntry,
   rowToRecord,
   tagsToJson,
 } from "./schema.js";
-import { DB_PATH, STALE_THRESHOLD_DAYS } from "../shared/constants.js";
+import { DB_PATH, STALE_THRESHOLD_DAYS, MAX_BRIEFING_RESULTS } from "../shared/constants.js";
 
 const MIGRATION_V1 = `
 CREATE TABLE IF NOT EXISTS scars (
@@ -275,6 +276,29 @@ export class ScarDatabase {
       stale_count: staleRow.cnt,
       top_hit_count: topHits,
     };
+  }
+
+  getBriefing(repo?: string): { entries: BriefingEntry[]; totalUnresolved: number } {
+    let countQuery = "SELECT COUNT(*) as cnt FROM scars WHERE resolution_type NOT IN ('fixed', 'wontfix')";
+    let query = `
+      SELECT id, error_signature, what_went_wrong, what_worked, resolution_type, repo, hit_count, created_at
+      FROM scars
+      WHERE resolution_type NOT IN ('fixed', 'wontfix')`;
+    const params: Record<string, string> = {};
+
+    if (repo) {
+      countQuery += " AND repo = @repo";
+      query += " AND repo = @repo";
+      params.repo = repo;
+    }
+
+    query += " ORDER BY hit_count DESC, created_at DESC LIMIT @limit";
+
+    const countRow = this.db.prepare(countQuery).get(params) as { cnt: number };
+
+    const rows = this.db.prepare(query).all({ ...params, limit: MAX_BRIEFING_RESULTS }) as BriefingEntry[];
+
+    return { entries: rows, totalUnresolved: countRow.cnt };
   }
 
   exportAll(): ScarRecord[] {

@@ -1,20 +1,32 @@
 {
-  "name": "scar",
-  "version": "0.1.0",
+  "name": "@bambushu/scar",
+  "version": "0.2.0",
   "description": "Failure memory for AI agents — MCP server + CLI",
   "type": "module",
   "bin": {
     "scar": "./dist/bin/scar.js",
     "scar-mcp": "./dist/bin/scar-mcp.js"
   },
+  "main": "./dist/core/index.js",
+  "exports": {
+    ".": "./dist/core/index.js",
+    "./mcp": "./dist/mcp/index.js",
+    "./adapter": "./dist/adapter/claude-code.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bambushu/scar.git"
+  },
+  "homepage": "https://github.com/bambushu/scar",
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": ["mcp", "ai", "agents", "failure-memory", "claude"],
+  "keywords": ["mcp", "mcp-server", "ai", "agents", "failure-memory", "claude", "llm", "debugging"],
   "license": "MIT",
   "engines": {
     "node": ">=22"

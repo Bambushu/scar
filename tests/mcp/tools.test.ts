@@ -218,4 +218,79 @@ describe("MCP Tool Handlers", () => {
       expect(data.has_relevant_scars).toBe(false);
     });
   });
+
+  describe("scar_briefing", () => {
+    it("returns clean slate when no scars exist", async () => {
+      const result = await handlers.scar_briefing({});
+      const data = JSON.parse(result.content[0].text);
+      expect(data.entries).toHaveLength(0);
+      expect(data.total_unresolved).toBe(0);
+      expect(data.message).toContain("Clean slate");
+    });
+
+    it("returns unresolved scars with human-readable message", async () => {
+      await handlers.scar_log({
+        repo: "test-repo",
+        language: "typescript",
+        tool_name: "bash",
+        error_type: "runtime",
+        error_signature: "TypeError: foo is not a function",
+        what_was_tried: "Called foo()",
+        what_went_wrong: "foo was undefined",
+      });
+
+      const result = await handlers.scar_briefing({ repo: "test-repo" });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.total_unresolved).toBe(1);
+      expect(data.entries).toHaveLength(1);
+      expect(data.repo).toBe("test-repo");
+      expect(data.message).toContain("TypeError: foo is not a function");
+    });
+
+    it("excludes fixed scars from briefing", async () => {
+      const logResult = await handlers.scar_log({
+        repo: "test-repo",
+        language: "typescript",
+        tool_name: "bash",
+        error_type: "runtime",
+        error_signature: "Error: fixed one",
+        what_was_tried: "test",
+        what_went_wrong: "failed",
+      });
+      const scarId = JSON.parse(logResult.content[0].text).id;
+      await handlers.scar_update({ id: scarId, resolution_type: "fixed", what_worked: "patched it" });
+
+      const result = await handlers.scar_briefing({});
+      const data = JSON.parse(result.content[0].text);
+      expect(data.entries).toHaveLength(0);
+      expect(data.message).toContain("Clean slate");
+    });
+
+    it("returns all repos when repo is omitted", async () => {
+      await handlers.scar_log({
+        repo: "repo-a",
+        language: "typescript",
+        tool_name: "bash",
+        error_type: "runtime",
+        error_signature: "Error A",
+        what_was_tried: "test",
+        what_went_wrong: "failed",
+      });
+      await handlers.scar_log({
+        repo: "repo-b",
+        language: "python",
+        tool_name: "bash",
+        error_type: "config",
+        error_signature: "Error B",
+        what_was_tried: "test",
+        what_went_wrong: "failed",
+      });
+
+      const result = await handlers.scar_briefing({});
+      const data = JSON.parse(result.content[0].text);
+      expect(data.total_unresolved).toBe(2);
+      expect(data.entries).toHaveLength(2);
+      expect(data.repo).toBeNull();
+    });
+  });
 });

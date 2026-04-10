@@ -93,6 +93,15 @@ export function createServer(dbPath?: string): { server: McpServer; close: () =>
     async (args) => handlers.scar_context(args)
   );
 
+  server.tool(
+    "scar_briefing",
+    "Session immune primer: returns top unresolved scars for a repo, ranked by frequency. Call at session start for instant situational awareness (~200 tokens).",
+    {
+      repo: z.string().optional().describe("Filter to a specific repository. Omit for all repos."),
+    },
+    async (args) => handlers.scar_briefing(args)
+  );
+
   return { server, close: () => db.close() };
 }
 

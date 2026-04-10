@@ -2,3 +2,4 @@ node_modules/
 dist/
 *.db
 .cognitive/
+.DS_Store

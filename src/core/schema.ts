@@ -112,6 +112,26 @@ export interface RecallContext {
   tags?: string[];
 }
 
+/** A single entry in a session briefing */
+export interface BriefingEntry {
+  id: string;
+  error_signature: string;
+  what_went_wrong: string;
+  what_worked: string | null;
+  resolution_type: ResolutionType;
+  repo: string;
+  hit_count: number;
+  created_at: string;
+}
+
+/** Session briefing result */
+export interface ScarBriefing {
+  repo: string | null;
+  entries: BriefingEntry[];
+  total_unresolved: number;
+  message: string;
+}
+
 /** Stats aggregation result */
 export interface ScarStats {
   total_scars: number;

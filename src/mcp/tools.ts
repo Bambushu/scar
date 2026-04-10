@@ -1,6 +1,6 @@
 import type { ScarDatabase } from "../core/database.js";
 import type { ScarMatcher } from "../core/matcher.js";
-import type { CreateScarInput, RecallContext } from "../core/schema.js";
+import type { CreateScarInput, RecallContext, ScarBriefing } from "../core/schema.js";
 import { DEDUP_WINDOW_MS } from "../shared/constants.js";
 
 interface ToolResponse {
@@ -15,6 +15,7 @@ export interface ToolHandlers {
   scar_forget: (args: Record<string, unknown>) => Promise<ToolResponse>;
   scar_stats: (args: Record<string, unknown>) => Promise<ToolResponse>;
   scar_context: (args: Record<string, unknown>) => Promise<ToolResponse>;
+  scar_briefing: (args: Record<string, unknown>) => Promise<ToolResponse>;
 }
 
 function jsonResponse(data: unknown): ToolResponse {
@@ -157,6 +158,36 @@ export function createToolHandlers(
             ? `${count} relevant scar(s) found. Call scar_recall for details.`
             : "No relevant scars. Proceed normally.",
       });
+    },
+
+    async scar_briefing(args) {
+      const repo = args.repo as string | undefined;
+      const { entries, totalUnresolved } = db.getBriefing(repo);
+
+      if (entries.length === 0) {
+        const briefing: ScarBriefing = {
+          repo: repo ?? null,
+          entries: [],
+          total_unresolved: 0,
+          message: "No unresolved scars. Clean slate.",
+        };
+        return jsonResponse(briefing);
+      }
+
+      const lines = entries.map((e, i) => {
+        const status = e.what_worked
+          ? `workaround: ${e.what_worked}`
+          : `unresolved (hit ${e.hit_count}x)`;
+        return `${i + 1}. ${e.error_signature} — ${status}`;
+      });
+
+      const briefing: ScarBriefing = {
+        repo: repo ?? null,
+        entries,
+        total_unresolved: totalUnresolved,
+        message: `${totalUnresolved} unresolved scar(s)${repo ? ` for ${repo}` : ""}:\n${lines.join("\n")}`,
+      };
+      return jsonResponse(briefing);
     },
   };
 }

@@ -5,11 +5,12 @@ import { runRecall } from "./commands/recall.js";
 import { runStats } from "./commands/stats.js";
 import { runForget } from "./commands/forget.js";
 import { runExport } from "./commands/export.js";
+import { runBriefing } from "./commands/briefing.js";
 
 export function main(): void {
   const program = new Command();
 
-  program.name("scar").description("Failure memory for AI agents").version("0.1.0");
+  program.name("scar").description("Failure memory for AI agents").version("0.2.0");
 
   program.command("init")
     .description("Set up database, MCP config, and optional Claude Code hooks")
@@ -76,6 +77,11 @@ export function main(): void {
   program.command("forget <id>")
     .description("Remove a scar by ID")
     .action((id) => { console.log(runForget({ id })); });
+
+  program.command("briefing")
+    .description("Session immune primer: top unresolved scars ranked by frequency")
+    .option("-r, --repo <repo>", "Filter to a specific repository")
+    .action((options) => { console.log(runBriefing({ repo: options.repo })); });
 
   program.command("export")
     .description("Export all scars as JSON")
