@@ -92,47 +92,78 @@ Known fixes:
 
 ---
 
-## Section 3: Unified Tool Capture Hook
+## Section 3: Transcript Miner (replaces PostToolUse hook approach)
 
-**PRE-FLIGHT: Verify PostToolUse hook contract.** Before building, confirm what JSON Claude Code passes to PostToolUse hooks for each tool type. The V1 hook works because Bash exposes exitCode and output. If Edit/Write/Read tool results (error messages, success/failure status) are NOT available in the hook input, the non-Bash capture matrix must be redesigned or dropped. This is a 10-minute investigation that gates the entire section.
+**Pre-flight finding (2026-04-10):** PostToolUse hooks ONLY fire on successful tool calls. Failed tool calls (Edit string not found, Read file not found, Bash crashes) never reach hooks. The V1 Bash failure hook was dead code — it read an `exitCode` field that doesn't exist in the payload. Confirmed by probe testing.
 
-Replace `hooks/post-bash-failure.sh` with `hooks/post-tool-failure.sh` - one hook that handles all tool types.
+**New approach:** Mine the session transcript JSONL file, which contains ALL tool calls (successes and failures) with full context.
 
-### Registration
+### How it works
 
-PostToolUse hook with no matcher (fires on all tools), filters internally by tool_name.
+Every Claude Code session writes a complete JSONL transcript to `~/.claude/projects/.../session-id.jsonl`. Each line is a JSON object. Tool failures have `is_error: true` in the tool_result content.
+
+A Node.js transcript miner script:
+1. Reads the JSONL transcript line by line
+2. Extracts entries with `is_error: true` or error patterns in tool results
+3. Classifies by tool type (Edit, Read, Write, Bash)
+4. Bulk-logs failures to Scar via the core database API
+5. Tracks mined transcripts to avoid re-processing
+
+### Hook architecture
+
+| Hook | Role | Reliability |
+|------|------|------------|
+| **SessionStart** | Primary — mines ALL un-mined previous transcripts | Guaranteed (always fires) |
+| **Stop** | Fast path — mines current session immediately | Best-effort (skipped on Ctrl-C, crash) |
+
+SessionStart is the guaranteed path. Stop is the fast path for immediate feedback.
 
 ### Capture matrix
 
-| Tool | Failure signal | Default severity |
-|------|---------------|-----------------|
-| Bash | Non-zero exit code | Inferred from pattern |
-| Bash (destructive) | `rm -rf`, `git push --force`, `drop table` failed | `high` |
-| Bash (build/test) | `npm test`, `vitest`, `tsc`, `build` failed | `medium` |
-| Edit | `old_string` not found / not unique | `low` |
-| Write | Permission denied, path not found | `medium` |
-| Read | File not found (ENOENT) | `low` |
+| Tool | Failure signal in transcript | Default severity |
+|------|------------------------------|-----------------|
+| Edit | `is_error: true`, "String to replace not found" | `medium` |
+| Read | `is_error: true`, "File does not exist" | `medium` |
+| Write | `is_error: true`, permission/path errors | `medium` |
+| Bash | `is_error: true`, non-zero exit, error patterns in output | `medium` |
 
-### Skip list (same philosophy as V1)
+### Skip list
 
-- `grep`/`rg` exit code 1 (no match)
+- Cancelled parallel tool calls (error is just "Cancelled: parallel tool call X errored")
+- `grep`/`rg` no-match (exit 1 but not a real failure)
 - `which`/`command -v` not found
 - `test`/`[` checks
-- `ls` with suppressed stderr
-- Exploratory Read on nonexistent files
+
+### Tracking mined transcripts
+
+A `mined_sessions` table in cognitive.db (or a simple text file at `~/.cognitive/scar/mined.log`) tracks which transcript files have been processed. SessionStart checks this before mining.
+
+### Privacy
+
+The miner reads full transcripts but only extracts and stores error-related entries. Document this explicitly for the open-source release.
+
+### Risk: undocumented transcript format
+
+Claude Code's JSONL format is internal and can change without notice. Mitigate with:
+- Validate expected fields before parsing
+- Fail gracefully (skip unparseable lines, don't crash)
+- Log a warning if format seems changed
 
 ### Severity
 
-All auto-captured scars default to `medium`. AI can override via `--severity` flag on `scar log` or the MCP tool. No auto-inference logic in V2.0 - will revisit when we have enough data to validate categories.
+All auto-captured scars default to `medium`. AI can override via `--severity` flag on `scar log` or the MCP tool. No auto-inference logic in V2.0.
 
 ### Implementation
 
-- `hooks/post-tool-failure.sh`: New unified hook with case statement per tool type.
-- `src/cli/commands/log.ts`: Add `--severity` and `--source` flags.
-- `src/mcp/server.ts`: Update scar_log tool schema to include severity and source parameters.
-- `src/mcp/tools.ts`: Pass severity and source through to database.
-- `~/.claude/settings.json`: Replace old Bash-only hook with new unified hook.
-- Delete `hooks/post-bash-failure.sh`.
+- `src/core/transcript-miner.ts`: Node.js module that parses JSONL transcripts and extracts failures
+- `src/cli/commands/mine.ts`: CLI command `scar mine <transcript-path>` (also callable from hooks)
+- `hooks/session-start-briefing.sh`: Extended to mine previous transcripts before showing briefing
+- `hooks/stop-mine.sh`: Stop hook that mines current session transcript
+- `src/cli/commands/log.ts`: Add `--severity` and `--source` flags
+- `src/mcp/server.ts`: Update scar_log tool schema for severity and source
+- `src/mcp/tools.ts`: Pass severity and source through
+- `~/.claude/settings.json`: Replace old Bash-only hook, add Stop hook
+- Delete `hooks/post-bash-failure.sh`
 
 ---
 
@@ -192,20 +223,24 @@ Deferred per adversarial review. Edge cases (race conditions on session file, PP
 |------|--------|
 | `src/core/schema.ts` | New types: `Severity`, `ScarSource`. Extended `ScarRecord`, `CreateScarInput` |
 | `src/core/database.ts` | Migration V2, extended `getBriefing()` for resolved scars |
+| `src/core/transcript-miner.ts` | NEW: JSONL transcript parser, failure extractor |
+| `src/cli/commands/mine.ts` | NEW: `scar mine <path>` CLI command |
 | `src/mcp/tools.ts` | severity/source in scar_log handler |
 | `src/mcp/server.ts` | Updated tool schemas for severity/source |
 | `src/cli/commands/log.ts` | `--severity` and `--source` flags |
 | `src/cli/commands/briefing.ts` | "Known fixes" section in output |
-| `hooks/post-tool-failure.sh` | New unified hook (replaces post-bash-failure.sh) |
-| `hooks/session-start-briefing.sh` | New briefing hook |
+| `hooks/session-start-briefing.sh` | New briefing hook (also mines un-mined transcripts) |
+| `hooks/stop-mine.sh` | NEW: Stop hook for fast-path transcript mining |
 | `~/.claude/CLAUDE.md` | Updated Scar instructions |
 | `~/.claude/settings.json` | Hook registrations updated |
-| Tests | New tests for migration, severity, briefing format |
+| Tests | New tests for migration, severity, briefing format, transcript miner |
 
 ## Out of Scope
 
 - V2.1 Resolution chains (`resolved_by_commit`, `preceded_by_scar_id`)
+- V2.1 Retry detection (session state tracking)
 - V2.2 Semantic fallback (embeddings)
+- V2.2 User correction detection from transcripts (ambiguous patterns, defer to V2)
 - V2.3 Async recall
 - Cross-repo pattern matching in briefings
 - `--quiet` flag for briefing suppression
