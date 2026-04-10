@@ -6,6 +6,7 @@ import { runStats } from "./commands/stats.js";
 import { runForget } from "./commands/forget.js";
 import { runExport } from "./commands/export.js";
 import { runBriefing } from "./commands/briefing.js";
+import { runMine } from "./commands/mine.js";
 
 export function main(): void {
   const program = new Command();
@@ -85,6 +86,18 @@ export function main(): void {
     .description("Session immune primer: top unresolved scars ranked by frequency")
     .option("-r, --repo <repo>", "Filter to a specific repository")
     .action((options) => { console.log(runBriefing({ repo: options.repo })); });
+
+  program.command("mine <transcript-path>")
+    .description("Extract failures from a Claude Code session transcript")
+    .option("-r, --repo <repo>", "Repository name (default: derived from transcript)")
+    .option("--dry-run", "Show what would be logged without logging")
+    .action((transcriptPath, options) => {
+      console.log(runMine({
+        transcriptPath,
+        repo: options.repo,
+        dryRun: options.dryRun,
+      }));
+    });
 
   program.command("export")
     .description("Export all scars as JSON")
