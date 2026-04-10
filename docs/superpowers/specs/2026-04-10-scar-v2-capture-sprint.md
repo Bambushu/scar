@@ -7,6 +7,12 @@
 
 **Philosophy:** The write path must be as automatic as possible. The read path must be unavoidable. Flip both, and the flywheel starts.
 
+**Review notes (adversarial review 2026-04-10):**
+- Section 5 (retry detection) deferred to V2.1 - too many edge cases (race conditions, PPID fragility, command normalization) for too little value at N=1 data points.
+- Severity: add column now (avoids second migration) but default everything to `medium`. No auto-inference logic yet - let AI override manually via `--severity` flag.
+- CRITICAL: Must verify Claude Code PostToolUse hook contract for non-Bash tools before building Section 3. If `tool_response` is not available for Edit/Write/Read, redesign needed.
+- Default unknown Bash failures to `medium` not `low`.
+
 ---
 
 ## Section 1: Schema Migration (V1 -> V2)
@@ -42,7 +48,7 @@ Tracks how the scar was captured:
 
 - `src/core/schema.ts`: Add `Severity` and `ScarSource` types. Add fields to `ScarRecord`, `ScarRow`, `CreateScarInput`.
 - `src/core/database.ts`: Add `MIGRATION_V2` with ALTER TABLE statements. Update `migrate()` to check schema version and run V2 if needed.
-- `src/shared/constants.ts`: Add severity inference patterns.
+- Schema version detected via `cognitive_meta` table (key: `scar_schema_version`), already exists from V1. Migration checks version = '1' and runs V2 ALTER TABLE statements.
 - Tests: Verify migration runs cleanly on existing V1 databases, new fields have correct defaults.
 
 ---
@@ -88,6 +94,8 @@ Known fixes:
 
 ## Section 3: Unified Tool Capture Hook
 
+**PRE-FLIGHT: Verify PostToolUse hook contract.** Before building, confirm what JSON Claude Code passes to PostToolUse hooks for each tool type. The V1 hook works because Bash exposes exitCode and output. If Edit/Write/Read tool results (error messages, success/failure status) are NOT available in the hook input, the non-Bash capture matrix must be redesigned or dropped. This is a 10-minute investigation that gates the entire section.
+
 Replace `hooks/post-bash-failure.sh` with `hooks/post-tool-failure.sh` - one hook that handles all tool types.
 
 ### Registration
@@ -113,15 +121,9 @@ PostToolUse hook with no matcher (fires on all tools), filters internally by too
 - `ls` with suppressed stderr
 - Exploratory Read on nonexistent files
 
-### Severity auto-inference for Bash
+### Severity
 
-```bash
-case "$COMMAND" in
-  *"rm -rf"*|*"git push --force"*|*"drop table"*) SEVERITY="high" ;;
-  *"npm test"*|*"vitest"*|*"tsc"*|*"build"*) SEVERITY="medium" ;;
-  *) SEVERITY="low" ;;
-esac
-```
+All auto-captured scars default to `medium`. AI can override via `--severity` flag on `scar log` or the MCP tool. No auto-inference logic in V2.0 - will revisit when we have enough data to validate categories.
 
 ### Implementation
 
@@ -178,52 +180,9 @@ destructive git ops, or anything you've seen fail before in this repo.
 
 ---
 
-## Section 5: Retry Detection
+## Section 5: Retry Detection (DEFERRED to V2.1)
 
-Detects "spinning wheels" - agent hitting the same target 3+ times in a session.
-
-### Session state file
-
-`/tmp/scar-session-<PPID>.json`:
-
-```json
-{
-  "tool_targets": {
-    "Edit:/Users/mikes/bonuswijs/src/app/page.tsx": 3,
-    "Bash:npm run build": 2
-  },
-  "logged": {
-    "Edit:/Users/mikes/bonuswijs/src/app/page.tsx": true
-  },
-  "session_start": "2026-04-10T19:00:00Z"
-}
-```
-
-### How it works
-
-1. The unified `post-tool-failure.sh` hook fires on every PostToolUse (success AND failure)
-2. Increments target counter in session file
-3. Key format: `<Tool>:<target>` (file_path for Edit/Write/Read, normalized command for Bash)
-4. At count >= 3, auto-log a scar:
-   - `error_signature`: "Retry loop: <target> attempted Nx in session"
-   - `severity`: `medium`
-   - `source`: `auto-hook`
-   - `tags`: `["retry-loop"]`
-5. Only fires once per target per session (tracked in `logged` map)
-
-### Bash command normalization
-
-Strip varying arguments to detect same-intent commands:
-- `npm test src/foo.test.ts` and `npm test src/bar.test.ts` -> `npm test`
-- `git add file1.ts` and `git add file2.ts` -> `git add`
-
-### Cleanup
-
-SessionStart hook deletes stale `/tmp/scar-session-*.json` files from previous sessions.
-
-### Why /tmp not SQLite
-
-Ephemeral per-session state. The scar it produces goes in SQLite, but counters don't need to survive restarts.
+Deferred per adversarial review. Edge cases (race conditions on session file, PPID fragility, command normalization) outweigh value at current data volume. Revisit when Scar has 50+ scars and we can validate whether retry loops are a real pattern.
 
 ---
 
@@ -237,12 +196,11 @@ Ephemeral per-session state. The scar it produces goes in SQLite, but counters d
 | `src/mcp/server.ts` | Updated tool schemas for severity/source |
 | `src/cli/commands/log.ts` | `--severity` and `--source` flags |
 | `src/cli/commands/briefing.ts` | "Known fixes" section in output |
-| `src/shared/constants.ts` | Severity inference patterns |
 | `hooks/post-tool-failure.sh` | New unified hook (replaces post-bash-failure.sh) |
 | `hooks/session-start-briefing.sh` | New briefing hook |
 | `~/.claude/CLAUDE.md` | Updated Scar instructions |
 | `~/.claude/settings.json` | Hook registrations updated |
-| Tests | New tests for migration, severity, briefing format, retry detection |
+| Tests | New tests for migration, severity, briefing format |
 
 ## Out of Scope
 
