@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync } from "fs";
+import { mkdtempSync, rmSync, unlinkSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { randomUUID } from "crypto";
+import Database from "better-sqlite3";
 import { ScarDatabase } from "../../src/core/database.js";
 import type { CreateScarInput } from "../../src/core/schema.js";
 
@@ -241,5 +243,94 @@ describe("ScarDatabase", () => {
     const exported = db.exportAll();
     expect(exported).toHaveLength(2);
     expect(exported[0].tags).toBeInstanceOf(Array);
+  });
+
+  describe("V2 schema", () => {
+    it("should create a scar with severity and source fields", () => {
+      const input: CreateScarInput = {
+        repo: "test-repo",
+        language: "typescript",
+        tool_name: "bash",
+        error_type: "runtime",
+        error_signature: "ENOENT: no such file",
+        what_was_tried: "ls /nonexistent",
+        what_went_wrong: "File not found",
+        severity: "high",
+        source: "auto-hook",
+      };
+      const record = db.create(input);
+      expect(record.severity).toBe("high");
+      expect(record.source).toBe("auto-hook");
+    });
+
+    it("should default severity to medium and source to manual", () => {
+      const input: CreateScarInput = {
+        repo: "test-repo",
+        language: "typescript",
+        tool_name: "bash",
+        error_type: "runtime",
+        error_signature: "some error",
+        what_was_tried: "something",
+        what_went_wrong: "it broke",
+      };
+      const record = db.create(input);
+      expect(record.severity).toBe("medium");
+      expect(record.source).toBe("manual");
+    });
+  });
+});
+
+describe("V2 migration", () => {
+  it("should add severity and source columns to existing V1 database", () => {
+    const testPath = join(tmpdir(), `scar-migration-test-${randomUUID()}.db`);
+    const rawDb = new Database(testPath);
+    rawDb.exec(`
+      CREATE TABLE cognitive_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO cognitive_meta (key, value) VALUES ('scar_schema_version', '1');
+      CREATE TABLE scars (
+        id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        repo TEXT NOT NULL,
+        language TEXT NOT NULL,
+        tool_name TEXT NOT NULL,
+        error_type TEXT NOT NULL,
+        error_signature TEXT NOT NULL,
+        exit_code INTEGER,
+        file_pattern TEXT NOT NULL DEFAULT 'other',
+        what_was_tried TEXT NOT NULL,
+        what_went_wrong TEXT NOT NULL,
+        what_worked TEXT,
+        resolution_type TEXT NOT NULL DEFAULT 'unknown',
+        tags TEXT NOT NULL DEFAULT '[]',
+        hit_count INTEGER NOT NULL DEFAULT 1,
+        similarity_score_cache TEXT
+      );
+      INSERT INTO scars (id, created_at, repo, language, tool_name, error_type, error_signature, what_was_tried, what_went_wrong)
+        VALUES ('old-scar', '2026-01-01T00:00:00Z', 'test', 'ts', 'bash', 'runtime', 'old error', 'old try', 'old wrong');
+    `);
+    rawDb.close();
+
+    const scarDb = new ScarDatabase(testPath);
+    const oldScar = scarDb.findById("old-scar");
+    expect(oldScar).not.toBeNull();
+    expect(oldScar!.severity).toBe("medium");
+    expect(oldScar!.source).toBe("manual");
+
+    const newScar = scarDb.create({
+      repo: "test",
+      language: "ts",
+      tool_name: "edit",
+      error_type: "other",
+      error_signature: "new error",
+      what_was_tried: "new try",
+      what_went_wrong: "new wrong",
+      severity: "high",
+      source: "auto-hook",
+    });
+    expect(newScar.severity).toBe("high");
+    expect(newScar.source).toBe("auto-hook");
+
+    scarDb.close();
+    unlinkSync(testPath);
   });
 });

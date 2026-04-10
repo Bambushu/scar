@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS cognitive_meta (
 );
 `;
 
+const MIGRATION_V2 = `
+ALTER TABLE scars ADD COLUMN severity TEXT NOT NULL DEFAULT 'medium';
+ALTER TABLE scars ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+`;
+
 export class ScarDatabase {
   private db: Database.Database;
 
@@ -65,7 +70,13 @@ export class ScarDatabase {
     if (!version) {
       this.db.transaction(() => {
         this.db.exec(MIGRATION_V1);
-        this.setMetaValue("scar_schema_version", "1");
+        this.db.exec(MIGRATION_V2);
+        this.setMetaValue("scar_schema_version", "2");
+      })();
+    } else if (version === "1") {
+      this.db.transaction(() => {
+        this.db.exec(MIGRATION_V2);
+        this.setMetaValue("scar_schema_version", "2");
       })();
     }
   }
@@ -96,11 +107,13 @@ export class ScarDatabase {
         `INSERT INTO scars (
           id, created_at, repo, language, tool_name, error_type,
           error_signature, exit_code, file_pattern, what_was_tried,
-          what_went_wrong, what_worked, resolution_type, tags, hit_count
+          what_went_wrong, what_worked, resolution_type, tags, hit_count,
+          severity, source
         ) VALUES (
           @id, @created_at, @repo, @language, @tool_name, @error_type,
           @error_signature, @exit_code, @file_pattern, @what_was_tried,
-          @what_went_wrong, @what_worked, @resolution_type, @tags, @hit_count
+          @what_went_wrong, @what_worked, @resolution_type, @tags, @hit_count,
+          @severity, @source
         )`
       )
       .run({
@@ -119,6 +132,8 @@ export class ScarDatabase {
         resolution_type: input.resolution_type ?? "unknown",
         tags: tagsToJson(input.tags ?? []),
         hit_count: 1,
+        severity: input.severity ?? "medium",
+        source: input.source ?? "manual",
       });
 
     return this.findById(id)!;

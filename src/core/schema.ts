@@ -1,3 +1,9 @@
+/** Severity level of a scar */
+export type Severity = "low" | "medium" | "high";
+
+/** How the scar was captured */
+export type ScarSource = "auto-hook" | "manual" | "briefing-follow-up";
+
 /** Resolution status of a scar */
 export type ResolutionType =
   | "fixed"
@@ -47,6 +53,8 @@ export interface ScarRecord {
   tags: string[];
   hit_count: number;
   similarity_score_cache: string | null;
+  severity: Severity;
+  source: ScarSource;
 }
 
 /** Row shape as stored in SQLite (tags serialized to JSON) */
@@ -67,6 +75,8 @@ export interface ScarRow {
   tags: string;
   hit_count: number;
   similarity_score_cache: string | null;
+  severity: string;
+  source: string;
 }
 
 /** Input for creating a new scar */
@@ -83,6 +93,8 @@ export interface CreateScarInput {
   what_worked?: string | null;
   resolution_type?: ResolutionType;
   tags?: string[];
+  severity?: Severity;
+  source?: ScarSource;
 }
 
 /** Input for updating an existing scar */
@@ -151,6 +163,8 @@ export function rowToRecord(row: ScarRow): ScarRecord {
     file_pattern: row.file_pattern as FilePattern,
     resolution_type: row.resolution_type as ResolutionType,
     tags: JSON.parse(row.tags || "[]"),
+    severity: row.severity as Severity,
+    source: row.source as ScarSource,
   };
 }
 
