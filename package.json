@@ -1,7 +1,7 @@
 {
   "name": "@bambushu/scar",
-  "version": "0.2.0",
-  "description": "Failure memory for AI agents — MCP server + CLI",
+  "version": "0.3.0",
+  "description": "Failure memory for AI agents - briefing hooks + optional MCP server",
   "type": "module",
   "bin": {
     "scar": "./dist/bin/scar.js",

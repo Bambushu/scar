@@ -2,24 +2,42 @@
 
 > Failure memory for AI agents. Remember what went wrong so you don't repeat it.
 
-Scar is an MCP server + CLI that gives AI agents persistent memory of past failures. When your agent encounters an error, Scar remembers the context, what was tried, and what eventually worked - so next time, the agent can avoid the same mistake.
+Scar mines your AI agent's session transcripts for failures, stores them in a local SQLite database, and surfaces a briefing at the start of every new session. Your agent walks into work already aware of what's been broken before.
 
-## Install
+Two surfaces:
+- **Hooks** (recommended): SessionStart briefing + Stop-time transcript mining. Passive, automatic, zero agent action required.
+- **MCP server** (optional): Active tools (`scar_log`, `scar_recall`, `scar_context`) for agents that want to query failure history mid-session.
+
+In practice, the briefing is where most of the value comes from. The MCP layer is for power users who want their agent to actively consult past failures before risky operations.
+
+## Install (slim, recommended)
 
 ```bash
-npm install -g scar
-scar init
+npm install -g @bambushu/scar
+scar init --claude-code
 ```
 
-## Quick Start
+That sets up:
+- SQLite database at `~/.cognitive/cognitive.db`
+- SessionStart hook in `~/.claude/settings.json` that runs the briefing
+- Stop hook that mines the just-finished transcript for failures
+
+You'll see a briefing at the top of every new Claude Code session listing unresolved failure patterns from prior work.
+
+## Install (full, with MCP)
+
+If you want active lookup tools too:
 
 ```bash
-# Initialize database and MCP config
-scar init
+npm install -g @bambushu/scar
+scar init --claude-code --with-mcp
+```
 
-# With Claude Code auto-capture hooks
-scar init --claude-code
+This additionally registers the MCP server so Claude Code exposes `scar_log`, `scar_recall`, `scar_context`, etc. as callable tools. Useful if you want your agent to consult Scar before deploys, DB mutations, or other risky ops.
 
+## CLI
+
+```bash
 # Manually log a failure
 scar log -r my-project -l typescript -t bash \
   -e "TypeError: Cannot read properties of undefined" \
@@ -40,7 +58,7 @@ scar forget <scar-id>
 scar export
 ```
 
-## MCP Tools
+## MCP Tools (optional install)
 
 | Tool | Purpose |
 |------|---------|
@@ -53,11 +71,10 @@ scar export
 
 ## How It Works
 
-1. Agent encounters an error or user corrects the agent
-2. Scar logs: repo, language, tool, error signature, what was tried, what went wrong
+1. Stop hook fires when a Claude Code session ends, mines the transcript JSONL for Bash/Edit/Write/Read failures, writes them to SQLite
+2. SessionStart hook fires on the next session, reads recent unresolved patterns, prints a briefing into the agent's context
 3. Auto-deduplicates identical errors within 5-minute windows
-4. Before the next action, agent calls `scar_context` (cheap) then `scar_recall` (detailed)
-5. Agent adjusts approach based on past failures
+4. (Optional, MCP) Agent calls `scar_context` before risky ops or `scar_recall` when investigating a class of error
 
 ## Storage
 

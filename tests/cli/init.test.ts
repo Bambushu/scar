@@ -21,13 +21,21 @@ describe("scar init", () => {
     expect(existsSync(dbPath)).toBe(true);
   });
 
-  it("generates MCP config snippet", () => {
+  it("does not generate MCP config by default", () => {
     tempDir = mkdtempSync(join(tmpdir(), "scar-init-test-"));
     const cognitiveDir = join(tempDir, ".cognitive");
     const dbPath = join(cognitiveDir, "cognitive.db");
     const result = runInit({ cognitiveDir, dbPath });
+    expect(result.mcpConfig).toBeUndefined();
+  });
+
+  it("generates MCP config snippet when withMcp is set", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "scar-init-test-"));
+    const cognitiveDir = join(tempDir, ".cognitive");
+    const dbPath = join(cognitiveDir, "cognitive.db");
+    const result = runInit({ cognitiveDir, dbPath, withMcp: true });
     expect(result.mcpConfig).toBeDefined();
-    expect(result.mcpConfig.scar.command).toContain("scar-mcp");
+    expect(result.mcpConfig!.scar.command).toContain("scar-mcp");
   });
 
   it("generates Claude Code hook config when requested", () => {

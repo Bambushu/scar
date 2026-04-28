@@ -14,16 +14,19 @@ export function main(): void {
   program.name("scar").description("Failure memory for AI agents").version("0.2.0");
 
   program.command("init")
-    .description("Set up database, MCP config, and optional Claude Code hooks")
-    .option("--claude-code", "Also generate Claude Code auto-capture hooks")
+    .description("Set up database, optional Claude Code hooks, optional MCP server")
+    .option("--claude-code", "Generate Claude Code auto-capture hooks (recommended)")
+    .option("--with-mcp", "Also emit MCP server config for active lookup tools (opt-in)")
     .action((options) => {
-      const result = runInit({ claudeCode: options.claudeCode });
+      const result = runInit({ claudeCode: options.claudeCode, withMcp: options.withMcp });
       for (const msg of result.messages) console.log(msg);
-      console.log("\nMCP config (add to ~/.mcp.json under 'mcpServers'):");
-      console.log(JSON.stringify(result.mcpConfig, null, 2));
       if (result.claudeCodeHooks) {
         console.log("\nClaude Code hooks:");
         console.log(JSON.stringify(result.claudeCodeHooks, null, 2));
+      }
+      if (result.mcpConfig) {
+        console.log("\nMCP config (add to ~/.mcp.json under 'mcpServers'):");
+        console.log(JSON.stringify(result.mcpConfig, null, 2));
       }
     });
 

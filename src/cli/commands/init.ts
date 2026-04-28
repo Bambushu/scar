@@ -8,10 +8,11 @@ interface InitOptions {
   cognitiveDir?: string;
   dbPath?: string;
   claudeCode?: boolean;
+  withMcp?: boolean;
 }
 
 interface InitResult {
-  mcpConfig: Record<string, { command: string; args: string[] }>;
+  mcpConfig?: Record<string, { command: string; args: string[] }>;
   claudeCodeHooks?: ReturnType<typeof generateClaudeCodeHooks>;
   messages: string[];
 }
@@ -35,10 +36,11 @@ export function runInit(options: InitOptions = {}): InitResult {
   db.close();
   messages.push(`Database ready at ${dbPath}`);
 
-  const mcpConfig = {
-    scar: { command: "scar-mcp", args: [] as string[] },
-  };
-  messages.push("MCP config generated. Add to ~/.mcp.json under 'mcpServers'.");
+  let mcpConfig: InitResult["mcpConfig"];
+  if (options.withMcp) {
+    mcpConfig = { scar: { command: "scar-mcp", args: [] as string[] } };
+    messages.push("MCP config generated. Add to ~/.mcp.json under 'mcpServers'.");
+  }
 
   let claudeCodeHooks: ReturnType<typeof generateClaudeCodeHooks> | undefined;
   if (options.claudeCode) {
