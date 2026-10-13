@@ -3,7 +3,7 @@
 # Triggers on PostToolUse for Bash commands with non-zero exit codes
 # Logs failures to Scar's SQLite database via CLI
 
-SCAR_BIN="/Users/mikes/scar/dist/bin/scar.js"
+SCAR_BIN="${SCAR_BIN:-$(cd "$(dirname "$0")/.." && pwd)/dist/bin/scar.js}"
 INPUT=$(cat)
 
 # Use printf to safely handle JSON with control characters

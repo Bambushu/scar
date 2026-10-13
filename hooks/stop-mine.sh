@@ -2,7 +2,7 @@
 # Scar stop hook: mine current session transcript (fast path, best-effort)
 # Not guaranteed to fire (ctrl-C, crash skip it) - SessionStart is the fallback
 
-SCAR_BIN="/Users/mikes/scar/dist/bin/scar.js"
+SCAR_BIN="${SCAR_BIN:-$(cd "$(dirname "$0")/.." && pwd)/dist/bin/scar.js}"
 MINED_LOG="$HOME/.cognitive/scar/mined.log"
 INPUT=$(cat)
 

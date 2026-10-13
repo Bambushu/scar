@@ -2,7 +2,7 @@
 # Scar session-start hook: mine previous transcripts + show briefing
 # Primary capture path (guaranteed to fire every session)
 
-SCAR_BIN="/Users/mikes/scar/dist/bin/scar.js"
+SCAR_BIN="${SCAR_BIN:-$(cd "$(dirname "$0")/.." && pwd)/dist/bin/scar.js}"
 MINED_LOG="$HOME/.cognitive/scar/mined.log"
 INPUT=$(cat)
 
